@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'mustChangePassword',
+          'regulationAcceptedVersion',
+          'regulationAcceptedAt',
+          'updatedAt'
+        ])
+      );
+    }
+
+    // 2. Units Collection
+    match /units/{unitId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 3. Event Days
+    match /eventDays/{dayId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 4. Questions (answer keys restricted to admin)
+    match /questions/{questionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 5. Participations
+    match /participations/{participationId} {
+      allow get: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      // Collaborator can update only in-progress state before final submission
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        resource.data.status != 'submitted' &&
+        request.resource.data.userId == request.auth.uid
+      );
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // 6. Draws
+    match /draws/{drawId} {
+      allow read: if isSignedIn() && (resource.data.status == 'published' || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 7. Regulations
+    match /regulations/{version} {
+      allow read: if isSignedIn() || true;
+      allow write: if isAdmin();
+    }
+
+    // 8. Audit Logs & Access Logs
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /accessLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if isSignedIn() || isAdmin();
+    }
+
+    // 9. App Settings
+    match /appSettings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

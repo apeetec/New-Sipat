@@ -1,0 +1,31 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "participations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventDayId", "order": "ASCENDING" },
+        { "fieldPath": "perfectScore", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "unitId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "draws",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

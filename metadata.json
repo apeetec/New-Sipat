@@ -1,0 +1,8 @@
+{
+  "name": "Portal SIPAT Honda",
+  "description": "Portal corporativo oficial da Semana Interna de Prevenção de Acidentes do Trabalho da Honda, com palestras, questionários, presenças, relatórios e sorteios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

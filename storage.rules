@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Banners and public event assets
+    match /banners/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Prize images
+    match /prizes/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Regulations PDFs
+    match /regulations/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Videos
+    match /videos/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    /* Base shadcn design tokens */
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --primary: #028056;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #f8fafc;
+    --accent-foreground: #0f172a;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e2e8f0;
+    --input: #cbd5e1;
+    --ring: #028056;
+    --radius: 0.75rem;
+
+    /* Dynamic Campaign Palette (Customizable via Admin Personalização) */
+    --brand-primary: #028056;
+    --brand-primary-dark: #015237;
+    --brand-primary-deep: #014730;
+    --brand-action: #66bd39;
+    --brand-bg: #e2e8e8;
+    --brand-graphite: #323f3c;
+    --brand-gold: #f59e0b;
+    --brand-accent: #667eea;
+
+    /* Legacy compatibility aliases */
+    --honda-green: var(--brand-primary);
+    --honda-dark: var(--brand-primary-dark);
+    --honda-deep: var(--brand-primary-deep);
+    --honda-action: var(--brand-action);
+    --honda-bg: var(--brand-bg);
+    --honda-graphite: var(--brand-graphite);
+    --honda-gold: var(--brand-gold);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--brand-bg);
+    color: var(--brand-graphite);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Montserrat', 'Inter', sans-serif;
+  }
+}
+
+/* Custom scrollbars for data tables and navigation */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

@@ -1,0 +1,158 @@
+{
+  "entities": {
+    "AppUser": {
+      "title": "AppUser",
+      "description": "Perfil de colaborador ou administrador com credenciais e status de regulamento",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "employeeNumber": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "format": "email", "maxLength": 100 },
+        "firstName": { "type": "string", "maxLength": 80 },
+        "lastName": { "type": "string", "maxLength": 80 },
+        "displayName": { "type": "string", "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 255 },
+        "role": { "type": "string", "enum": ["admin", "collaborator"] },
+        "unitId": { "type": "string", "maxLength": 64 },
+        "unitSlug": { "type": "string", "maxLength": 64 },
+        "unitNameBackup": { "type": "string", "maxLength": 128 },
+        "company": { "type": "string", "maxLength": 128 },
+        "adminComment": { "type": "string", "maxLength": 500 },
+        "mustChangePassword": { "type": "boolean" },
+        "regulationAcceptedVersion": { "type": "string", "maxLength": 30 },
+        "regulationAcceptedAt": { "type": "string", "format": "date-time" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "employeeNumber", "email", "displayName", "role", "mustChangePassword", "active", "createdAt", "updatedAt"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "Unidade fabril ou corporativa da Honda",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "slug": { "type": "string", "maxLength": 80 },
+        "active": { "type": "boolean" },
+        "sortOrder": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "slug", "active", "sortOrder", "createdAt", "updatedAt"]
+    },
+    "EventDay": {
+      "title": "EventDay",
+      "description": "Dia oficial de palestra da SIPAT",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 80 },
+        "slug": { "type": "string", "maxLength": 80 },
+        "dateLabel": { "type": "string", "maxLength": 80 },
+        "attraction": { "type": "string", "maxLength": 200 },
+        "theme": { "type": "string", "maxLength": 255 },
+        "timezone": { "type": "string", "enum": ["America/Sao_Paulo"] },
+        "opensAt": { "type": "string", "format": "date-time" },
+        "closesAt": { "type": "string", "format": "date-time" },
+        "videoUrl": { "type": "string", "maxLength": 500 },
+        "attendanceCodeHash": { "type": "string", "maxLength": 128 },
+        "attendanceCodeLength": { "type": "number" },
+        "active": { "type": "boolean" },
+        "countsForFullWeek": { "type": "boolean" },
+        "sortOrder": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "slug", "dateLabel", "timezone", "opensAt", "closesAt", "active", "countsForFullWeek", "sortOrder", "createdAt", "updatedAt"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Pergunta avaliativa ou pesquisa de opinião",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventDayId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 500 },
+        "type": { "type": "string", "enum": ["single_choice", "free_text", "rating"] },
+        "required": { "type": "boolean" },
+        "scored": { "type": "boolean" },
+        "suggestionPrompt": { "type": "string", "maxLength": 300 },
+        "sortOrder": { "type": "number" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "eventDayId", "title", "type", "required", "scored", "sortOrder", "active", "createdAt", "updatedAt"]
+    },
+    "Participation": {
+      "title": "Participation",
+      "description": "Registro imutável de presença, progresso e respostas do colaborador no dia",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "eventDayId": { "type": "string" },
+        "modality": { "type": "string", "enum": ["in_person", "remote"] },
+        "attendanceValidatedAt": { "type": "string", "format": "date-time" },
+        "videoProgressPercent": { "type": "number" },
+        "videoCompletedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["not_started", "in_progress", "submitted"] },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "correctCount": { "type": "number" },
+        "scoredQuestionCount": { "type": "number" },
+        "percentage": { "type": "number" },
+        "perfectScore": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "eventDayId", "videoProgressPercent", "status", "perfectScore", "createdAt", "updatedAt"]
+    },
+    "Draw": {
+      "title": "Draw",
+      "description": "Sorteio oficial auditado e snapshot de vencedores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "prizeName": { "type": "string", "maxLength": 150 },
+        "groupName": { "type": "string", "maxLength": 100 },
+        "requestedWinnerCount": { "type": "number" },
+        "actualWinnerCount": { "type": "number" },
+        "excludePreviousWinners": { "type": "boolean" },
+        "eligibleCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["published", "voided"] },
+        "voidReason": { "type": "string", "maxLength": 500 },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "prizeName", "groupName", "requestedWinnerCount", "actualWinnerCount", "status", "createdBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "AppUser" },
+      "description": "Perfis de usuários protegidos por RBAC"
+    },
+    "/units/{unitId}": {
+      "schema": { "$ref": "Unit" },
+      "description": "Unidades e localidades fabris da Honda"
+    },
+    "/eventDays/{dayId}": {
+      "schema": { "$ref": "EventDay" },
+      "description": "Sessões e dias do evento SIPAT"
+    },
+    "/questions/{questionId}": {
+      "schema": { "$ref": "Question" },
+      "description": "Banco de perguntas com gabarito isolado no backend"
+    },
+    "/participations/{participationId}": {
+      "schema": { "$ref": "Participation" },
+      "description": "Participações dos colaboradores por dia"
+    },
+    "/draws/{drawId}": {
+      "schema": { "$ref": "Draw" },
+      "description": "Sorteios publicados e auditados"
+    }
+  }
+}
