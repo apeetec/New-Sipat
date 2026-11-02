@@ -76,7 +76,7 @@ export const INITIAL_SETTINGS: AppSettings = {
   videoCompletionThresholdPercent: 99,
   showCorrectAnswersAfterSubmit: true,
   maskEmployeeNumberInWinners: true,
-  initialPasswordHelpText: 'Use a senha temporária fornecida pela administração.',
+  initialPasswordHelpText: 'Senha inicial: data de aniversário sem barras. Exemplo: 01051995',
   activeRegulationVersion: '2026.1',
   privacyPolicyUrl: '#',
   

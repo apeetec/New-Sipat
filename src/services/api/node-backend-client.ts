@@ -31,28 +31,27 @@ import {
 } from '../../types';
 
 // URL base da API Node.js (configurável no arquivo .env via VITE_API_URL)
-const configuredUrl = ((import.meta as any).env?.VITE_API_URL || '').replace(/\/$/, '');
-// O contrato existente já inclui /api em cada endpoint. Aceitamos tanto a
-// origem (https://api.exemplo.com) quanto uma URL terminada em /api.
-const API_BASE_URL = configuredUrl.endsWith('/api') ? configuredUrl.slice(0, -4) : configuredUrl;
-export const isNodeBackendEnabled = configuredUrl.length > 0;
-let memoryToken: string | null = null;
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '';
 
 /**
  * Função utilitária para recuperar o token JWT armazenado na sessão do navegador
  */
-function getAuthToken(): string | null { return memoryToken; }
-export function setNodeAuthToken(token: string | null): void { memoryToken = token; }
+function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem('sipat_auth_token_jwt') || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Utilitário central para executar chamadas HTTP com tratamento de erros padronizado
  */
-export async function request<T>(endpoint: string, options: RequestInit = {}, canRefresh = true): Promise<T> {
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
-  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
-    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...((options.headers as Record<string, string>) || {}),
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
   };
 
   if (token) {
@@ -63,34 +62,19 @@ export async function request<T>(endpoint: string, options: RequestInit = {}, ca
   const response = await fetch(url, {
     ...options,
     headers,
-    credentials: 'include',
   });
-
-  // O refresh token nunca fica disponível ao JavaScript: o navegador o envia
-  // como cookie HttpOnly e a API o rotaciona antes de repetir a requisição.
-  if (response.status === 401 && canRefresh && endpoint !== '/api/auth/login' && endpoint !== '/api/auth/refresh') {
-    const refreshResponse = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-    });
-    if (refreshResponse.ok) {
-      const refreshed = await refreshResponse.json();
-      setNodeAuthToken(refreshed.token);
-      return request<T>(endpoint, options, false);
-    }
-  }
 
   if (!response.ok) {
     let errorMessage = `Erro HTTP ${response.status}: ${response.statusText}`;
     try {
       const errorJson = await response.json();
-      errorMessage = errorJson?.error?.message || errorJson?.message || errorMessage;
+      if (errorJson.message) errorMessage = errorJson.message;
     } catch {
       // Falha ao parsear JSON de erro
     }
     throw new Error(errorMessage);
   }
 
-  if (response.status === 204) return undefined as T;
   return response.json();
 }
 
@@ -107,25 +91,10 @@ export const NodeAuthApi = {
    * @param password Senha em texto puro (o servidor compara o hash bcrypt no MySQL)
    */
   async login(employeeNumber: string, password: string): Promise<{ token: string; user: AppUser }> {
-    const result = await request<{ token: string; user: AppUser }>('/api/auth/login', {
+    return request<{ token: string; user: AppUser }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ employeeNumber, password }),
     });
-    setNodeAuthToken(result.token);
-    return result;
-  },
-
-  async restore(): Promise<AppUser> {
-    const refreshed = await request<{ token: string; user: AppUser }>('/api/auth/refresh', { method: 'POST' }, false);
-    setNodeAuthToken(refreshed.token);
-    return refreshed.user;
-  },
-
-  async me(): Promise<AppUser> { return request<AppUser>('/api/auth/me'); },
-
-  async logout(): Promise<void> {
-    await request<void>('/api/auth/logout', { method: 'POST' }, false);
-    setNodeAuthToken(null);
   },
 
   /**
@@ -174,10 +143,6 @@ export const NodeEventsApi = {
    */
   async getEventDayBySlug(slug: string): Promise<{ day: EventDay; questions: Question[] }> {
     return request<{ day: EventDay; questions: Question[] }>(`/api/events/${slug}`);
-  },
-
-  async getParticipantEvent(dayId: string): Promise<{ eventDay: EventDay; questions: Question[]; participation: Participation | null; isUnlocked: boolean }> {
-    return request(`/api/events/by-id/${dayId}`);
   },
 
   /**
@@ -241,10 +206,10 @@ export const NodeDrawsApi = {
    * Pré-visualiza os colaboradores elegíveis com 100% de acertos para um sorteio
    * @route POST /api/admin/draws/preview
    */
-  async previewEligibleUsers(scope: { type: 'day'; eventDayId: string } | { type: 'full_week' }, unitIds: string[] | ['all'] = ['all'], excludePreviousWinners = true): Promise<AppUser[]> {
+  async previewEligibleUsers(scope: { type: 'day'; eventDayId: string } | { type: 'full_week' }, excludePreviousWinners = true): Promise<AppUser[]> {
     return request<AppUser[]>('/api/admin/draws/preview', {
       method: 'POST',
-      body: JSON.stringify({ scope, unitIds, excludePreviousWinners }),
+      body: JSON.stringify({ scope, excludePreviousWinners }),
     });
   },
 
@@ -254,10 +219,8 @@ export const NodeDrawsApi = {
    */
   async executeDraw(params: {
     prizeName: string;
-    prizeImageUrl?: string;
     groupName: string;
     scope: { type: 'day'; eventDayId: string } | { type: 'full_week' };
-    unitIds: string[] | ['all'];
     requestedWinnerCount: number;
     excludePreviousWinners: boolean;
   }): Promise<Draw> {
@@ -318,54 +281,5 @@ export const NodeSettingsApi = {
    */
   async listAccessLogs(limit = 100): Promise<AccessLog[]> {
     return request<AccessLog[]>(`/api/admin/audit/access-logs?limit=${limit}`);
-  },
-};
-
-export interface UploadedAsset {
-  url: string;
-  mimeType: string;
-  size: number;
-  originalName: string;
-}
-
-/** Upload autenticado e validado por assinatura binária no servidor. */
-export const NodeUploadsApi = {
-  async upload(file: File, kind: 'image' | 'video'): Promise<UploadedAsset> {
-    const form = new FormData();
-    form.append('kind', kind);
-    form.append('file', file, file.name);
-    return request<UploadedAsset>('/api/admin/uploads', {
-      method: 'POST',
-      body: form,
-    });
-  },
-};
-
-export interface EmailReportDelivery {
-  accepted: boolean;
-  mode: 'outbox' | 'smtp';
-  messageId: string;
-  previewFile?: string;
-  message: string;
-}
-
-/** Envia o relatório pelo SMTP em produção ou gera um .eml no outbox local. */
-export const NodeReportsApi = {
-  async sendResultsEmail(input: {
-    recipients: string[];
-    subject: string;
-    message: string;
-    attachment: Blob;
-    filename: string;
-  }): Promise<EmailReportDelivery> {
-    const form = new FormData();
-    form.append('recipients', JSON.stringify(input.recipients));
-    form.append('subject', input.subject);
-    form.append('message', input.message);
-    form.append('attachment', input.attachment, input.filename);
-    return request<EmailReportDelivery>('/api/admin/reports/email', {
-      method: 'POST',
-      body: form,
-    });
   },
 };

@@ -1,29 +1,19 @@
 import Papa from 'papaparse';
 
-const FORMULA_PREFIX = /^[\u0000-\u0020]*[=+\-@]/;
-
-function safeSpreadsheetValue(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  return FORMULA_PREFIX.test(value) ? `'${value}` : value;
-}
-
-export function createCsvBlob<T extends Record<string, any>>(
-  data: T[],
-  delimiter: ';' | ',' = ';'
-): Blob {
-  const safeData = data.map(row => Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [key, safeSpreadsheetValue(value)])
-  ));
-  const csv = Papa.unparse(safeData, { delimiter, quotes: true });
-  return new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-}
-
 export function exportToCsv<T extends Record<string, any>>(
   data: T[],
   filename: string,
   delimiter: ';' | ',' = ';'
 ): void {
-  const blob = createCsvBlob(data, delimiter);
+  // Convert array to CSV
+  const csv = Papa.unparse(data, {
+    delimiter,
+    quotes: true,
+  });
+
+  // Prepend UTF-8 BOM so Excel opens accents correctly
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');

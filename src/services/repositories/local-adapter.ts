@@ -213,9 +213,8 @@ export function initializeLocalDatabase(): void {
   }
 }
 
-// Evita carregar dados demonstrativos (inclusive gabaritos) quando a API real
-// está configurada. O adaptador local existe apenas para homologação offline.
-if (!((import.meta as any).env?.VITE_API_URL || '').trim()) initializeLocalDatabase();
+// Ensure database is bootstrapped
+initializeLocalDatabase();
 
 export class LocalUserRepository implements IUserRepository {
   async getById(id: string): Promise<AppUser | null> {

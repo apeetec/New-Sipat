@@ -7,7 +7,6 @@ import { toast } from '../../../components/feedback/ToastContainer';
 import { parseUserImportCsv, UserImportRow, EXPECTED_IMPORT_COLUMNS, COLUMN_LABELS_PT } from '../../../utils/csv-parser';
 import { exportToCsv } from '../../../services/exports/csv-exporter';
 import { userRepository, unitRepository, auditRepository } from '../../../services/repositories';
-import { isNodeBackendEnabled } from '../../../services/api/node-backend-client';
 import { useAuth } from '../../auth/AuthContext';
 import {
   Upload,
@@ -310,11 +309,10 @@ export const AdminUserImportPage: React.FC = () => {
               company: row.company?.trim() || existingUser.company,
               adminComment: row.adminComment?.trim() || existingUser.adminComment,
               mustChangePassword: row.mustChangePassword,
-              ...(isNodeBackendEnabled && row.temporaryPassword ? { temporaryPassword: row.temporaryPassword } : {}),
             });
 
             // Set temporary password
-            if (!isNodeBackendEnabled && row.temporaryPassword) {
+            if (row.temporaryPassword) {
               localStorage.setItem(`pass_${existingUser.id}`, row.temporaryPassword);
             }
 
@@ -342,10 +340,9 @@ export const AdminUserImportPage: React.FC = () => {
               mustChangePassword: row.mustChangePassword,
               role: 'collaborator',
               active: true,
-              ...(isNodeBackendEnabled ? { temporaryPassword: row.temporaryPassword } : {}),
             });
 
-            if (!isNodeBackendEnabled && row.temporaryPassword) {
+            if (row.temporaryPassword) {
               localStorage.setItem(`pass_${created.id}`, row.temporaryPassword);
             }
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { userRepository, unitRepository } from '../../../services/repositories';
-import { isNodeBackendEnabled } from '../../../services/api/node-backend-client';
 import { AppUser, Unit } from '../../../types';
 import { useAuth } from '../../auth/AuthContext';
 import { AdminShell } from '../../../components/layout/AdminShell';
@@ -87,7 +86,7 @@ export const AdminUsersPage: React.FC = () => {
     setRole('collaborator');
     setMustChangePassword(true);
     setActive(true);
-    setTemporaryPassword('');
+    setTemporaryPassword('01051995');
     setModalError('');
     setIsModalOpen(true);
   };
@@ -133,10 +132,9 @@ export const AdminUsersPage: React.FC = () => {
           role,
           mustChangePassword,
           active,
-          ...(isNodeBackendEnabled && temporaryPassword.trim() ? { temporaryPassword: temporaryPassword.trim() } : {}),
         });
 
-        if (!isNodeBackendEnabled && temporaryPassword.trim()) {
+        if (temporaryPassword.trim()) {
           localStorage.setItem(`pass_${editingUser.id}`, temporaryPassword.trim());
         }
 
@@ -155,10 +153,9 @@ export const AdminUsersPage: React.FC = () => {
           role,
           mustChangePassword,
           active,
-          ...(isNodeBackendEnabled ? { temporaryPassword: temporaryPassword.trim() } : {}),
         });
 
-        if (!isNodeBackendEnabled && temporaryPassword.trim()) {
+        if (temporaryPassword.trim()) {
           localStorage.setItem(`pass_${newUser.id}`, temporaryPassword.trim());
         }
 
@@ -457,7 +454,7 @@ export const AdminUsersPage: React.FC = () => {
 
             <TextField
               label={editingUser ? 'Redefinir Senha Temporária (opcional)' : 'Senha Temporária de Acesso'}
-              placeholder="Mínimo 8 caracteres, com letra e número"
+              placeholder="Ex.: 01051995"
               value={temporaryPassword}
               onChange={e => setTemporaryPassword(e.target.value)}
               helperText="Caso informada, substitui a senha atual"

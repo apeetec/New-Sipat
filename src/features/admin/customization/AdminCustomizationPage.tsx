@@ -9,7 +9,6 @@ import { Tabs } from '../../../components/ui/Tabs';
 import { Alert } from '../../../components/ui/Alert';
 import { toast } from '../../../components/feedback/ToastContainer';
 import { applyThemeColors } from '../../../utils/theme';
-import { isNodeBackendEnabled, NodeUploadsApi } from '../../../services/api/node-backend-client';
 import {
   Palette,
   Type,
@@ -87,7 +86,6 @@ export const AdminCustomizationPage: React.FC = () => {
   const [brandSubtitle, setBrandSubtitle] = useState('Cuidar de você é a nossa maior segurança');
   const [primaryLogoUrl, setPrimaryLogoUrl] = useState('');
   const [logoFileName, setLogoFileName] = useState('');
-  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   // Colors
   const [primaryColor, setPrimaryColor] = useState('#028056');
@@ -99,7 +97,7 @@ export const AdminCustomizationPage: React.FC = () => {
   const [loginTitle, setLoginTitle] = useState('Acesse sua conta');
   const [loginSubtitle, setLoginSubtitle] = useState('Utilize sua matrícula funcional da Honda para ingressar no evento.');
   const [loginBadgeText, setLoginBadgeText] = useState('Honda Automóveis do Brasil');
-  const [initialPasswordHelpText, setInitialPasswordHelpText] = useState('Use a senha temporária fornecida pela administração.');
+  const [initialPasswordHelpText, setInitialPasswordHelpText] = useState('Senha inicial: data de aniversário sem barras. Exemplo: 01051995');
 
   // Home Page Texts
   const [homeHeadline, setHomeHeadline] = useState('Semana Interna de Prevenção de Acidentes do Trabalho');
@@ -127,7 +125,7 @@ export const AdminCustomizationPage: React.FC = () => {
         setLoginTitle(settings.loginTitle || 'Acesse sua conta');
         setLoginSubtitle(settings.loginSubtitle || 'Utilize sua matrícula funcional da Honda para ingressar no evento.');
         setLoginBadgeText(settings.loginBadgeText || 'Honda Automóveis do Brasil');
-        setInitialPasswordHelpText(settings.initialPasswordHelpText || 'Use a senha temporária fornecida pela administração.');
+        setInitialPasswordHelpText(settings.initialPasswordHelpText || 'Senha inicial: data de aniversário sem barras. Exemplo: 01051995');
         setHomeHeadline(settings.homeHeadline || 'Semana Interna de Prevenção de Acidentes do Trabalho');
         setHomeDescription(settings.homeDescription || 'Participe diariamente dos treinamentos presenciais ou assista aos vídeos oficiais para validar sua presença, testar seus conhecimentos e concorrer aos sorteios oficiais da SIPAT.');
         setSupportContact(settings.supportContact || 'seguranca.trabalho@honda.com.br');
@@ -163,18 +161,12 @@ export const AdminCustomizationPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      toast.error('Selecione uma imagem válida (PNG, JPG ou WebP).');
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione uma imagem válida (PNG, JPG, SVG).');
       return;
     }
 
     setLogoFileName(file.name);
-    setLogoFile(file);
-    if (isNodeBackendEnabled) {
-      setPrimaryLogoUrl(URL.createObjectURL(file));
-      toast.success('Logotipo selecionado. Salve para enviar ao servidor.');
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -188,15 +180,10 @@ export const AdminCustomizationPage: React.FC = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      let savedLogoUrl = primaryLogoUrl;
-      if (isNodeBackendEnabled && logoFile) {
-        savedLogoUrl = (await NodeUploadsApi.upload(logoFile, 'image')).url;
-        setPrimaryLogoUrl(savedLogoUrl);
-      }
       const updated: Partial<AppSettings> = {
         brandName,
         brandSubtitle,
-        primaryLogoUrl: savedLogoUrl,
+        primaryLogoUrl,
         primaryColor,
         primaryDarkColor,
         actionColor,
@@ -226,11 +213,10 @@ export const AdminCustomizationPage: React.FC = () => {
     setBrandSubtitle('Cuidar de você é a nossa maior segurança');
     setPrimaryLogoUrl('');
     setLogoFileName('');
-    setLogoFile(null);
     setLoginTitle('Acesse sua conta');
     setLoginSubtitle('Utilize sua matrícula funcional da Honda para ingressar no evento.');
     setLoginBadgeText('Honda Automóveis do Brasil');
-    setInitialPasswordHelpText('Use a senha temporária fornecida pela administração.');
+    setInitialPasswordHelpText('Senha inicial: data de aniversário sem barras. Exemplo: 01051995');
     setHomeHeadline('Semana Interna de Prevenção de Acidentes do Trabalho');
     setHomeDescription('Participe diariamente dos treinamentos presenciais ou assista aos vídeos oficiais para validar sua presença, testar seus conhecimentos e concorrer aos sorteios oficiais da SIPAT.');
     toast.info('Valores restaurados para o padrão original da SIPAT Honda.');
@@ -446,7 +432,7 @@ export const AdminCustomizationPage: React.FC = () => {
                     <input
                       type="file"
                       ref={logoInputRef}
-                      accept="image/png,image/jpeg,image/webp"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
                       onChange={handleLogoUpload}
                       className="hidden"
                     />
@@ -548,7 +534,7 @@ export const AdminCustomizationPage: React.FC = () => {
                 label="Dica para o Primeiro Acesso (Senha Inicial)"
                 value={initialPasswordHelpText}
                 onChange={e => setInitialPasswordHelpText(e.target.value)}
-                placeholder="Ex.: use a senha temporária fornecida pela administração"
+                placeholder="Ex: Senha inicial: data de aniversário sem barras. Exemplo: 01051995"
                 helperText="Explique a regra da senha inicial para novos colaboradores."
               />
             </CardContent>

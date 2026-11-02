@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { AppUser } from '../../types';
 import { backendService } from '../../services/api/backend-service';
 import { userRepository } from '../../services/repositories';
-import { isNodeBackendEnabled, NodeAuthApi } from '../../services/api/node-backend-client';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -23,17 +22,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const refreshUser = async () => {
     if (!user) return;
-    const fresh = isNodeBackendEnabled ? await NodeAuthApi.me() : await userRepository.getById(user.id);
+    const fresh = await userRepository.getById(user.id);
     if (fresh) setUser(fresh);
   };
 
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (isNodeBackendEnabled) {
-          try { setUser(await NodeAuthApi.restore()); } catch { setUser(null); }
-          return;
-        }
         const storedId = localStorage.getItem(SESSION_KEY);
         if (storedId) {
           const found = await userRepository.getById(storedId);
@@ -55,11 +50,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (employeeNumber: string, passwordAttempt: string) => {
     setLoading(true);
     try {
-      if (isNodeBackendEnabled) {
-        const result = await NodeAuthApi.login(employeeNumber, passwordAttempt);
-        setUser(result.user);
-        return { success: true };
-      }
       const res = await backendService.resolveEmployeeLogin(employeeNumber, passwordAttempt);
       if (res.success && res.data) {
         setUser(res.data.user);
@@ -74,12 +64,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
-    if (isNodeBackendEnabled) void NodeAuthApi.logout().catch(() => undefined);
     localStorage.removeItem(SESSION_KEY);
   };
 
   const switchUser = async (userId: string) => {
-    if (isNodeBackendEnabled) return;
     const target = await userRepository.getById(userId);
     if (target) {
       setUser(target);

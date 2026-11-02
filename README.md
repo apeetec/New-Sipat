@@ -1,17 +1,12 @@
 # Portal SIPAT Honda 2026 — Documentação Técnica & Operacional
 
-> API de produção, Swagger e deploy: `backend/README.md`. Modelo SQL:
-> `docs/DATABASE_MODEL.md` e `database/schema.sql`.
-
-> Início rápido com XAMPP, credenciais válidas e publicação: `docs/LOCAL_TESTING_AND_DEPLOY.md`.
-
 Plataforma corporativa full-stack desenvolvida para a **Semana Interna de Prevenção de Acidentes do Trabalho da Honda Automóveis do Brasil**, substituindo a antiga solução monolítica em WordPress por uma arquitetura moderna, segura, auditável e responsiva.
 
 ---
 
 ## 1. Arquitetura do Sistema & Padrões
 
-O projeto adota o **Padrão de Repositórios** com dois modos explícitos:
+O projeto adota o **Padrão de Repositórios com Adaptador Duplo** (*Repository Pattern with Dual Adapter*):
 
 1. **Adaptador Local de Alta Fidelidade (Default Out-of-the-Box):**
    - Hashing SHA-256 de presenças via Web Crypto API.
@@ -19,11 +14,9 @@ O projeto adota o **Padrão de Repositórios** com dois modos explícitos:
    - Armazenamento com persistência local reativa e trilha de auditoria completa.
    - Inicialização idempotente dos 5 dias, 33 unidades, perguntas oficiais e contas para homologação imediata.
 
-2. **API Node.js + MySQL/MariaDB (Produção):**
-   - A implementação completa está em `backend/` e é selecionada quando `VITE_API_URL` está configurada.
-   - Autenticação, RBAC, regras de negócio, CRUDs, sorteios e auditoria são processados no servidor.
-   - O schema oficial está em `database/schema.sql`; o Swagger fica em `/api/docs`.
-   - Os arquivos Firestore na raiz são artefatos legados e não representam integração ativa.
+2. **Adaptador Firebase / Cloud Firestore (Enterprise Mode):**
+   - Configuração pronta para Firestore e Firebase Auth via `firebase-blueprint.json`, `firestore.rules`, `storage.rules` e `firestore.indexes.json`.
+   - Quando as credenciais Firebase são fornecidas via variáveis de ambiente (`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`), o sistema conecta-se ao cluster do Google Cloud.
 
 ```text
 src/
@@ -57,20 +50,17 @@ src/
     tools/
       CsvValidatorPage # Validador CSV standalone
   services/
-    repositories/      # Interfaces e adaptador local de homologação
+    firebase/          # Inicialização e handler de erros ABAC
+    repositories/      # Interfaces e adaptadores (Local e Firestore)
     api/               # Backend Service com contratos estritos
     exports/           # Exportadores CSV (BOM UTF-8, ponto-e-vírgula) e Excel (.xlsx)
   utils/               # Formatadores para America/Sao_Paulo, Parser CSV PapaParse
   seed/                # Carga inicial com as 5 palestras oficiais da Honda
-backend/               # API Express/TypeScript em camadas, Swagger, PM2 e deploy
-database/              # DDL MySQL/MariaDB normalizado
 ```
 
 ---
 
 ## 2. Credenciais de Teste & Homologação
-
-As credenciais da tabela abaixo pertencem somente ao adaptador de demonstração sem API. Para o ambiente integrado Node.js + XAMPP use `admin.local` / `AdminLocal2026` após executar `npm run setup:local`.
 
 | Perfil | Matrícula (Login) | Senha Inicial | Finalidade no Teste |
 |---|---|---|---|
@@ -99,8 +89,7 @@ Durante os testes na tela de cada palestra (`/dias/:slug`), você pode optar por
 
 ### Rodar o ambiente de desenvolvimento:
 ```bash
-npm run setup:local
-npm run dev:full
+npm run dev
 ```
 
 ### Executar a suíte de testes unitários:

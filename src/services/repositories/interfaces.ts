@@ -16,8 +16,8 @@ export interface IUserRepository {
   getByEmployeeNumber(employeeNumber: string): Promise<AppUser | null>;
   getByEmail(email: string): Promise<AppUser | null>;
   list(filters?: { search?: string; unitId?: string; role?: string; active?: boolean }): Promise<AppUser[]>;
-  create(user: Omit<AppUser, 'id' | 'createdAt' | 'updatedAt'> & { temporaryPassword?: string }, id?: string): Promise<AppUser>;
-  update(id: string, updates: Partial<AppUser> & { temporaryPassword?: string }): Promise<AppUser>;
+  create(user: Omit<AppUser, 'id' | 'createdAt' | 'updatedAt'>, id?: string): Promise<AppUser>;
+  update(id: string, updates: Partial<AppUser>): Promise<AppUser>;
   deactivate(id: string): Promise<void>;
   count(): Promise<number>;
 }
@@ -35,8 +35,8 @@ export interface IEventRepository {
   getById(id: string): Promise<EventDay | null>;
   getBySlug(slug: string): Promise<EventDay | null>;
   list(): Promise<EventDay[]>;
-  create(day: Omit<EventDay, 'id' | 'createdAt' | 'updatedAt'> & { attendanceCode?: string }): Promise<EventDay>;
-  update(id: string, updates: Partial<EventDay> & { attendanceCode?: string }): Promise<EventDay>;
+  create(day: Omit<EventDay, 'id' | 'createdAt' | 'updatedAt'>): Promise<EventDay>;
+  update(id: string, updates: Partial<EventDay>): Promise<EventDay>;
   delete(id: string): Promise<void>;
 }
 

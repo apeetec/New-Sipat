@@ -1,137 +1,54 @@
-import writeXlsxFile, {
-  type Cell,
-  type Row,
-  type Sheet,
-} from 'write-excel-file/browser';
+import * as XLSX from 'xlsx';
 
 export interface ExcelSheetDefinition {
   name: string;
-  data: Record<string, unknown>[];
+  data: Record<string, any>[];
 }
-
-const FORMULA_PREFIX = /^[\u0000-\u0020]*[=+\-@]/;
 
 /**
- * Converte valores arbitrários da aplicação para tipos válidos do XLSX.
- * O apóstrofo neutraliza conteúdo que planilhas poderiam interpretar como
- * fórmula ao abrir um arquivo exportado (CSV/Excel formula injection).
+ * Export a single dataset as an Excel spreadsheet
  */
-function toSpreadsheetValue(value: unknown): Cell {
-  if (value === null || value === undefined) return '';
-  if (value instanceof Date) return value;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
-
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  if (!text) return '';
-  return FORMULA_PREFIX.test(text) ? `'${text}` : text;
-}
-
-function normalizeFilename(filename: string): string {
-  const baseName = filename.replace(/\.xlsx$/i, '').trim() || 'exportacao';
-  return `${baseName.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')}.xlsx`;
-}
-
-function normalizeSheetName(name: string): string {
-  return (name.trim() || 'Planilha').replace(/[\\/?*[\]:]/g, '_').slice(0, 31);
-}
-
-function uniqueSheetName(name: string, usedNames: Set<string>): string {
-  const normalized = normalizeSheetName(name);
-  let candidate = normalized;
-  let suffix = 2;
-
-  while (usedNames.has(candidate.toLocaleLowerCase('pt-BR'))) {
-    const marker = `_${suffix}`;
-    candidate = `${normalized.slice(0, 31 - marker.length)}${marker}`;
-    suffix += 1;
-  }
-
-  usedNames.add(candidate.toLocaleLowerCase('pt-BR'));
-  return candidate;
-}
-
-function collectColumns(data: Record<string, unknown>[]): string[] {
-  const columns = new Set<string>();
-  data.forEach(row => Object.keys(row).forEach(key => columns.add(key)));
-  return [...columns];
-}
-
-function createSheet(
-  definition: ExcelSheetDefinition,
-  usedNames: Set<string>
-): Sheet<Blob> {
-  const keys = collectColumns(definition.data);
-
-  if (keys.length === 0) {
-    return {
-      sheet: uniqueSheetName(definition.name, usedNames),
-      data: [[{ value: 'Sem dados', fontWeight: 'bold' }]],
-      columns: [{ width: 18 }],
-      stickyRowsCount: 1,
-    };
-  }
-
-  const header: Row = keys.map(key => ({
-    value: key,
-    fontWeight: 'bold',
-    backgroundColor: '#E2E8F0',
-  }));
-
-  const rows: Row[] = definition.data.map(row =>
-    keys.map(key => toSpreadsheetValue(row[key]))
-  );
-
-  const columns = keys.map((key, columnIndex) => {
-    let maxLength = key.length;
-    rows.slice(0, 100).forEach(row => {
-      const value = row[columnIndex];
-      const displayValue = typeof value === 'object' && value && 'value' in value
-        ? value.value
-        : value;
-      maxLength = Math.max(maxLength, String(displayValue ?? '').length);
-    });
-    return { width: Math.min(Math.max(maxLength + 3, 12), 63) };
-  });
-
-  return {
-    sheet: uniqueSheetName(definition.name, usedNames),
-    data: [header, ...rows],
-    columns,
-    stickyRowsCount: 1,
-  };
-}
-
-/** Exporta um conjunto de dados como uma planilha Excel. */
-export async function exportToExcel<T extends Record<string, unknown>>(
+export function exportToExcel<T extends Record<string, any>>(
   data: T[],
   filename: string,
   sheetName = 'Resultados'
-): Promise<void> {
-  const usedNames = new Set<string>();
-  const sheet = createSheet({ name: sheetName, data }, usedNames);
-  await writeXlsxFile([sheet]).toFile(normalizeFilename(filename));
+): void {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
+  XLSX.writeFile(workbook, `${filename.replace(/\.xlsx$/, '')}.xlsx`);
 }
 
-/** Exporta vários conjuntos de dados em abas de um único arquivo Excel. */
-export async function exportMultiSheetExcel(
+/**
+ * Export multiple datasets as a multi-sheet Excel spreadsheet workbook
+ */
+export function exportMultiSheetExcel(
   sheets: ExcelSheetDefinition[],
   filename: string
-): Promise<void> {
-  await writeXlsxFile(createWorkbookSheets(sheets)).toFile(normalizeFilename(filename));
-}
+): void {
+  const workbook = XLSX.utils.book_new();
 
-/** Gera o XLSX em memória para envio seguro à API, sem baixar o arquivo. */
-export async function createMultiSheetExcelBlob(
-  sheets: ExcelSheetDefinition[]
-): Promise<Blob> {
-  return writeXlsxFile(createWorkbookSheets(sheets)).toBlob();
-}
+  sheets.forEach(sheetDef => {
+    const worksheet = XLSX.utils.json_to_sheet(sheetDef.data);
 
-function createWorkbookSheets(sheets: ExcelSheetDefinition[]): Sheet<Blob>[] {
-  const usedNames = new Set<string>();
-  return (sheets.length > 0
-    ? sheets
-    : [{ name: 'Resultados', data: [] }]
-  ).map(sheet => createSheet(sheet, usedNames));
+    // Auto-fit column widths
+    if (sheetDef.data.length > 0) {
+      const colKeys = Object.keys(sheetDef.data[0]);
+      worksheet['!cols'] = colKeys.map(key => {
+        let maxLen = key.length;
+        sheetDef.data.slice(0, 100).forEach(row => {
+          const valStr = String(row[key] ?? '');
+          if (valStr.length > maxLen) {
+            maxLen = Math.min(valStr.length, 60);
+          }
+        });
+        return { wch: Math.max(maxLen + 3, 12) };
+      });
+    }
+
+    const safeSheetName = sheetDef.name.slice(0, 31).replace(/[\\/?*[\]]/g, '_');
+    XLSX.utils.book_append_sheet(workbook, worksheet, safeSheetName);
+  });
+
+  XLSX.writeFile(workbook, `${filename.replace(/\.xlsx$/, '')}.xlsx`);
 }

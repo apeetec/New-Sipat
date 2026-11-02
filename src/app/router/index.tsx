@@ -1,26 +1,25 @@
-import React, { lazy } from 'react';
+import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { LoginPage } from '../../features/auth/LoginPage';
+import { FirstAccessPage } from '../../features/auth/FirstAccessPage';
+import { RegulationPage } from '../../features/regulations/RegulationPage';
+import { HomePage } from '../../features/home/HomePage';
+import { EventDayPage } from '../../features/events/EventDayPage';
+import { WinnersPage } from '../../features/winners/WinnersPage';
+import { AdminDashboardPage } from '../../features/admin/dashboard/AdminDashboardPage';
+import { AdminEventsPage } from '../../features/admin/event-management/AdminEventsPage';
+import { AdminQuestionsPage } from '../../features/admin/question-management/AdminQuestionsPage';
+import { AdminUnitsPage } from '../../features/admin/unit-management/AdminUnitsPage';
+import { AdminUsersPage } from '../../features/admin/user-management/AdminUsersPage';
+import { AdminUserImportPage } from '../../features/admin/user-import/AdminUserImportPage';
+import { AdminBulkDeletePage } from '../../features/admin/bulk-delete/AdminBulkDeletePage';
+import { AdminResultsPage } from '../../features/admin/results/AdminResultsPage';
+import { AdminDrawsPage } from '../../features/admin/draws/AdminDrawsPage';
+import { AdminAuditPage } from '../../features/admin/audit/AdminAuditPage';
+import { AdminSettingsPage } from '../../features/admin/settings/AdminSettingsPage';
+import { AdminCustomizationPage } from '../../features/admin/customization/AdminCustomizationPage';
+import { CsvValidatorPage } from '../../features/tools/CsvValidatorPage';
 import { ProtectedRoute, AdminRoute, FirstAccessRoute } from '../../features/auth/guards';
-
-const LoginPage = lazy(() => import('../../features/auth/LoginPage').then(module => ({ default: module.LoginPage })));
-const FirstAccessPage = lazy(() => import('../../features/auth/FirstAccessPage').then(module => ({ default: module.FirstAccessPage })));
-const RegulationPage = lazy(() => import('../../features/regulations/RegulationPage').then(module => ({ default: module.RegulationPage })));
-const HomePage = lazy(() => import('../../features/home/HomePage').then(module => ({ default: module.HomePage })));
-const EventDayPage = lazy(() => import('../../features/events/EventDayPage').then(module => ({ default: module.EventDayPage })));
-const WinnersPage = lazy(() => import('../../features/winners/WinnersPage').then(module => ({ default: module.WinnersPage })));
-const AdminDashboardPage = lazy(() => import('../../features/admin/dashboard/AdminDashboardPage').then(module => ({ default: module.AdminDashboardPage })));
-const AdminEventsPage = lazy(() => import('../../features/admin/event-management/AdminEventsPage').then(module => ({ default: module.AdminEventsPage })));
-const AdminQuestionsPage = lazy(() => import('../../features/admin/question-management/AdminQuestionsPage').then(module => ({ default: module.AdminQuestionsPage })));
-const AdminUnitsPage = lazy(() => import('../../features/admin/unit-management/AdminUnitsPage').then(module => ({ default: module.AdminUnitsPage })));
-const AdminUsersPage = lazy(() => import('../../features/admin/user-management/AdminUsersPage').then(module => ({ default: module.AdminUsersPage })));
-const AdminUserImportPage = lazy(() => import('../../features/admin/user-import/AdminUserImportPage').then(module => ({ default: module.AdminUserImportPage })));
-const AdminBulkDeletePage = lazy(() => import('../../features/admin/bulk-delete/AdminBulkDeletePage').then(module => ({ default: module.AdminBulkDeletePage })));
-const AdminResultsPage = lazy(() => import('../../features/admin/results/AdminResultsPage').then(module => ({ default: module.AdminResultsPage })));
-const AdminDrawsPage = lazy(() => import('../../features/admin/draws/AdminDrawsPage').then(module => ({ default: module.AdminDrawsPage })));
-const AdminAuditPage = lazy(() => import('../../features/admin/audit/AdminAuditPage').then(module => ({ default: module.AdminAuditPage })));
-const AdminSettingsPage = lazy(() => import('../../features/admin/settings/AdminSettingsPage').then(module => ({ default: module.AdminSettingsPage })));
-const AdminCustomizationPage = lazy(() => import('../../features/admin/customization/AdminCustomizationPage').then(module => ({ default: module.AdminCustomizationPage })));
-const CsvValidatorPage = lazy(() => import('../../features/tools/CsvValidatorPage').then(module => ({ default: module.CsvValidatorPage })));
 
 export const router = createBrowserRouter([
   // Public login
