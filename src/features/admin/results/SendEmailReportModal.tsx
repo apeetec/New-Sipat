@@ -3,9 +3,12 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { TextField } from '../../../components/ui/TextField';
 import { AppUser, EventDay, Question, Participation } from '../../../types';
-import { auditRepository } from '../../../services/repositories';
-import { exportMultiSheetExcel } from '../../../services/exports/excel-exporter';
-import { exportToCsv } from '../../../services/exports/csv-exporter';
+import {
+  createMultiSheetExcelBlob,
+  exportMultiSheetExcel,
+} from '../../../services/exports/excel-exporter';
+import { createCsvBlob, exportToCsv } from '../../../services/exports/csv-exporter';
+import { isNodeBackendEnabled, NodeReportsApi } from '../../../services/api/node-backend-client';
 import { toast } from '../../../components/feedback/ToastContainer';
 import {
   Mail,
@@ -56,6 +59,7 @@ export const SendEmailReportModal: React.FC<SendEmailReportModalProps> = ({
   const [reportFormat, setReportFormat] = useState<'xlsx' | 'csv'>('xlsx');
   const [sending, setSending] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
+  const [deliveryMessage, setDeliveryMessage] = useState('');
 
   // Group questions by day
   const questionsByDay: Record<string, Question[]> = {};
@@ -244,61 +248,68 @@ export const SendEmailReportModal: React.FC<SendEmailReportModalProps> = ({
     return { summaryData, matrixData, detailedData };
   };
 
-  const handleDownloadAttachment = () => {
+  const handleDownloadAttachment = async () => {
     const { summaryData, matrixData, detailedData } = generateDatasets();
     const filename = `relatorio_matriz_respostas_${Date.now()}`;
 
     if (reportFormat === 'xlsx') {
-      exportMultiSheetExcel(
-        [
-          { name: 'Resumo_Participacoes', data: summaryData },
-          { name: 'Matriz_Respostas', data: matrixData },
-          { name: 'Detalhamento_Completo', data: detailedData },
-        ],
-        filename
-      );
-      toast.success('Planilha Excel gerada e baixada com sucesso.');
+      try {
+        await exportMultiSheetExcel(
+          [
+            { name: 'Resumo_Participacoes', data: summaryData },
+            { name: 'Matriz_Respostas', data: matrixData },
+            { name: 'Detalhamento_Completo', data: detailedData },
+          ],
+          filename
+        );
+        toast.success('Planilha Excel gerada e baixada com sucesso.');
+      } catch {
+        toast.error('Não foi possível gerar a planilha Excel.');
+      }
     } else {
       exportToCsv(detailedData, `${filename}.csv`, ';');
       toast.success('Arquivo CSV baixado com sucesso.');
     }
   };
 
-  const handleSendEmailSimulation = async () => {
+  const handleSendEmail = async () => {
     if (recipients.length === 0) {
       toast.error('Adicione ao menos um e-mail de destinatário.');
+      return;
+    }
+
+    if (!subject.trim() || !message.trim()) {
+      toast.error('Informe o assunto e a mensagem do e-mail.');
+      return;
+    }
+    if (!isNodeBackendEnabled) {
+      toast.error('Configure VITE_API_URL para enviar o relatório pela API.');
       return;
     }
 
     setSending(true);
 
     try {
-      // Generate dataset for confirmation
-      const { summaryData, detailedData } = generateDatasets();
-
-      // Log to audit repository for compliance
-      await auditRepository.logAudit({
-        actorUserId: 'admin',
-        actorName: 'Administrador',
-        action: 'export_results_email',
-        entity: 'results_matrix',
-        entityId: recipients.join(', '),
-        afterData: {
-          recipients,
-          subject,
-          scope: reportScope,
-          format: reportFormat,
-          totalUsers: targetUsers.length,
-          totalDetailedRows: detailedData.length,
-          timestamp: new Date().toISOString(),
-        },
+      const { summaryData, matrixData, detailedData } = generateDatasets();
+      const baseName = `relatorio_matriz_respostas_${Date.now()}`;
+      const attachment = reportFormat === 'xlsx'
+        ? await createMultiSheetExcelBlob([
+            { name: 'Resumo_Participacoes', data: summaryData },
+            { name: 'Matriz_Respostas', data: matrixData },
+            { name: 'Detalhamento_Completo', data: detailedData },
+          ])
+        : createCsvBlob(detailedData, ';');
+      const delivery = await NodeReportsApi.sendResultsEmail({
+        recipients,
+        subject: subject.trim(),
+        message: message.trim(),
+        attachment,
+        filename: `${baseName}.${reportFormat}`,
       });
 
-      // Brief simulated network latency
-      await new Promise(r => setTimeout(r, 900));
-
+      setDeliveryMessage(delivery.message);
       setSentSuccess(true);
-      toast.success(`Relatório enviado com sucesso para ${recipients.length} destinatário(s)!`);
+      toast.success(delivery.message);
 
       setTimeout(() => {
         setSentSuccess(false);
@@ -357,10 +368,10 @@ export const SendEmailReportModal: React.FC<SendEmailReportModalProps> = ({
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <h3 className="text-base font-bold text-slate-900 font-display">
-              E-mail Disparado com Sucesso!
+              Relatório Processado com Sucesso!
             </h3>
             <p className="text-slate-500 max-w-md mx-auto text-xs">
-              A matriz de resultados com as respostas dos colaboradores foi enviada para{' '}
+              {deliveryMessage}{' '}Destinatário(s):{' '}
               <strong className="text-slate-800">{recipients.join(', ')}</strong>.
             </p>
           </div>
@@ -535,7 +546,7 @@ export const SendEmailReportModal: React.FC<SendEmailReportModalProps> = ({
                   variant="primary"
                   size="sm"
                   loading={sending}
-                  onClick={handleSendEmailSimulation}
+                  onClick={handleSendEmail}
                   icon={<Send className="w-3.5 h-3.5" />}
                 >
                   {sending ? 'Disparando...' : 'Disparar E-mail'}

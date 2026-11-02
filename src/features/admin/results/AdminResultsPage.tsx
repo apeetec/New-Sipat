@@ -320,17 +320,21 @@ export const AdminResultsPage: React.FC = () => {
     toast.success('Arquivo CSV detalhado exportado com sucesso.');
   };
 
-  const handleExportExcel = () => {
-    const { summarySheet, matrixSheet, detailedSheet } = prepareDetailedExcelData();
-    exportMultiSheetExcel(
-      [
-        { name: 'Resumo_Participacoes', data: summarySheet },
-        { name: 'Matriz_Geral_Respostas', data: matrixSheet },
-        { name: 'Detalhamento_Completo', data: detailedSheet },
-      ],
-      `matriz_geral_respostas_sipat_${Date.now()}`
-    );
-    toast.success('Planilha Excel multi-abas exportada com sucesso.');
+  const handleExportExcel = async () => {
+    try {
+      const { summarySheet, matrixSheet, detailedSheet } = prepareDetailedExcelData();
+      await exportMultiSheetExcel(
+        [
+          { name: 'Resumo_Participacoes', data: summarySheet },
+          { name: 'Matriz_Geral_Respostas', data: matrixSheet },
+          { name: 'Detalhamento_Completo', data: detailedSheet },
+        ],
+        `matriz_geral_respostas_sipat_${Date.now()}`
+      );
+      toast.success('Planilha Excel multi-abas exportada com sucesso.');
+    } catch {
+      toast.error('Não foi possível gerar a planilha Excel.');
+    }
   };
 
   const handleCopyClipboard = async () => {

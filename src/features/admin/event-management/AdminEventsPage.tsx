@@ -10,6 +10,7 @@ import { Alert } from '../../../components/ui/Alert';
 import { Badge } from '../../../components/ui/Badge';
 import { toast } from '../../../components/feedback/ToastContainer';
 import { sha256Hex } from '../../../utils/security';
+import { isNodeBackendEnabled, NodeUploadsApi } from '../../../services/api/node-backend-client';
 import { formatDateToSaoPaulo } from '../../../utils/formatters';
 import {
   Calendar,
@@ -51,11 +52,13 @@ export const AdminEventsPage: React.FC = () => {
   const [videoAttachmentName, setVideoAttachmentName] = useState('');
   const [videoAttachmentDataUrl, setVideoAttachmentDataUrl] = useState('');
   const [videoAttachmentSize, setVideoAttachmentSize] = useState<number | undefined>(undefined);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
 
   // Card Cover Art fields
   const [coverArtSourceType, setCoverArtSourceType] = useState<'upload' | 'url'>('upload');
   const [cardCoverImageUrl, setCardCoverImageUrl] = useState('');
   const [cardCoverImageName, setCardCoverImageName] = useState('');
+  const [coverArtFile, setCoverArtFile] = useState<File | null>(null);
 
   const [active, setActive] = useState(true);
   const [countsForFullWeek, setCountsForFullWeek] = useState(true);
@@ -100,9 +103,11 @@ export const AdminEventsPage: React.FC = () => {
     setVideoAttachmentName('');
     setVideoAttachmentDataUrl('');
     setVideoAttachmentSize(undefined);
+    setVideoFile(null);
     setCoverArtSourceType('upload');
     setCardCoverImageUrl('');
     setCardCoverImageName('');
+    setCoverArtFile(null);
     setActive(true);
     setCountsForFullWeek(true);
     setSpeakersText('');
@@ -112,6 +117,8 @@ export const AdminEventsPage: React.FC = () => {
   };
 
   const openEditModal = (day: EventDay) => {
+    setVideoFile(null);
+    setCoverArtFile(null);
     setEditingDay(day);
     setName(day.name);
     setSlug(day.slug);
@@ -156,20 +163,21 @@ export const AdminEventsPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('video/')) {
+    if (!['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'].includes(file.type)) {
       setModalError('Por favor selecione um arquivo de vídeo válido (.mp4, .webm, .mov, etc.).');
       return;
     }
 
     setVideoAttachmentName(file.name);
     setVideoAttachmentSize(file.size);
+    setVideoFile(file);
 
     // Read video as object URL for local preview and as DataURL for persistent local storage
     const blobUrl = URL.createObjectURL(file);
     setVideoAttachmentDataUrl(blobUrl);
 
     // Also read DataURL asynchronously if under reasonable size for localStorage persistence
-    if (file.size < 25 * 1024 * 1024) {
+    if (!isNodeBackendEnabled && file.size < 25 * 1024 * 1024) {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
@@ -188,12 +196,19 @@ export const AdminEventsPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       setModalError('Por favor selecione um arquivo de imagem válido (.png, .jpg, .webp).');
       return;
     }
 
     setCardCoverImageName(file.name);
+    setCoverArtFile(file);
+    if (isNodeBackendEnabled) {
+      setCardCoverImageUrl(URL.createObjectURL(file));
+      setModalError('');
+      toast.success('Arte do card selecionada. Salve para enviar ao servidor!');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -234,12 +249,17 @@ export const AdminEventsPage: React.FC = () => {
       attendanceCodeLength = newAttendanceCode.trim().length;
     }
 
-    // Determine final video URL/Data
-    const finalVideoUrl = videoSourceType === 'attachment'
-      ? (videoAttachmentDataUrl || '')
-      : (videoUrl.trim() || '');
-
     try {
+      let finalVideoUrl = videoSourceType === 'attachment'
+        ? (videoAttachmentDataUrl || '')
+        : (videoUrl.trim() || '');
+      let finalCoverImageUrl = cardCoverImageUrl || '';
+      if (isNodeBackendEnabled && videoSourceType === 'attachment' && videoFile) {
+        finalVideoUrl = (await NodeUploadsApi.upload(videoFile, 'video')).url;
+      }
+      if (isNodeBackendEnabled && coverArtSourceType === 'upload' && coverArtFile) {
+        finalCoverImageUrl = (await NodeUploadsApi.upload(coverArtFile, 'image')).url;
+      }
       if (editingDay) {
         await eventRepository.update(editingDay.id, {
           name,
@@ -253,13 +273,14 @@ export const AdminEventsPage: React.FC = () => {
           videoType: videoSourceType,
           videoAttachmentName: videoSourceType === 'attachment' ? videoAttachmentName : undefined,
           videoAttachmentDataUrl: videoSourceType === 'attachment' ? videoAttachmentDataUrl : undefined,
-          cardCoverImageUrl: cardCoverImageUrl || undefined,
+          cardCoverImageUrl: finalCoverImageUrl || undefined,
           cardCoverImageName: cardCoverImageName || undefined,
           active,
           countsForFullWeek,
           speakers,
           attendanceCodeHash,
           attendanceCodeLength,
+          ...(isNodeBackendEnabled && newAttendanceCode.trim() ? { attendanceCode: newAttendanceCode.trim().toUpperCase() } : {}),
         });
         toast.success('Dia e sessão atualizados com sucesso!');
       } else {
@@ -276,7 +297,7 @@ export const AdminEventsPage: React.FC = () => {
           videoType: videoSourceType,
           videoAttachmentName: videoSourceType === 'attachment' ? videoAttachmentName : undefined,
           videoAttachmentDataUrl: videoSourceType === 'attachment' ? videoAttachmentDataUrl : undefined,
-          cardCoverImageUrl: cardCoverImageUrl || undefined,
+          cardCoverImageUrl: finalCoverImageUrl || undefined,
           cardCoverImageName: cardCoverImageName || undefined,
           active,
           countsForFullWeek,
@@ -284,6 +305,7 @@ export const AdminEventsPage: React.FC = () => {
           attendanceCodeHash: attendanceCodeHash || '',
           attendanceCodeLength,
           sortOrder: days.length + 1,
+          ...(isNodeBackendEnabled && newAttendanceCode.trim() ? { attendanceCode: newAttendanceCode.trim().toUpperCase() } : {}),
         });
         toast.success('Novo dia e sessão cadastrados com sucesso!');
       }
@@ -697,7 +719,7 @@ export const AdminEventsPage: React.FC = () => {
                 <input
                   type="file"
                   ref={coverArtFileInputRef}
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={handleCoverArtChange}
                   className="hidden"
                 />
@@ -777,7 +799,7 @@ export const AdminEventsPage: React.FC = () => {
               <span>Código Oficial de Presença Presencial</span>
             </h4>
             <TextField
-              placeholder={editingDay ? 'Deixe em branco para manter o código atual' : 'Ex: SIPAT01'}
+                placeholder={editingDay ? 'Deixe em branco para manter o código atual' : 'Defina um código temporário'}
               value={newAttendanceCode}
               onChange={e => setNewAttendanceCode(e.target.value)}
               helperText="O código é armazenado como hash SHA-256 no banco; o texto limpo nunca é transmitido aos colaboradores."

@@ -74,12 +74,7 @@ export const EventDayPage: React.FC = () => {
         }
 
         // Questions: if already submitted, get questions with answer keys for review if permitted
-        if (data.participation?.status === 'submitted') {
-          const allQ = await questionRepository.listByDay(eventDay.id);
-          setQuestions(allQ.filter(q => q.active));
-        } else {
-          setQuestions(data.questions as Question[]);
-        }
+        setQuestions((data.questions as Question[]).filter(q => q.active));
 
         // Restore draft answers from localStorage if in progress
         const draftKey = `draft_quiz_${user.id}_${eventDay.id}`;
@@ -202,8 +197,7 @@ export const EventDayPage: React.FC = () => {
         setParticipation(updatedPart.participation);
 
         // Fetch questions with keys for review
-        const allQ = await questionRepository.listByDay(day.id);
-        setQuestions(allQ.filter(q => q.active));
+        setQuestions((updatedPart.questions as Question[]).filter(q => q.active));
 
         toast.success('Respostas enviadas com sucesso!');
       } else {

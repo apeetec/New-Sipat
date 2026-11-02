@@ -1,4 +1,6 @@
-# 📘 Guia de Implementação: Backend Node.js + SQL (Hostinger)
+# Guia legado de Implementacao: Backend Node.js + SQL (Hostinger)
+
+> **Aviso:** este documento foi preservado como referencia historica. O schema oficial e importavel esta em `database/schema.sql`, o modelo em `docs/DATABASE_MODEL.md` e a auditoria/deploy em `docs/AUDITORIA_ARQUITETURA_PRODUCAO.md`. Nao copie o DDL antigo abaixo para producao.
 ### Portal SIPAT & Campanhas Corporativas
 
 > **Objetivo Deste Documento:**  

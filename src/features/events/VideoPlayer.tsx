@@ -240,17 +240,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Evaluator accelerator button */}
-              <button
-                type="button"
-                onClick={handleDevFastForward}
-                disabled={isSaving || progressPercent >= 99}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/20 hover:bg-[#66bd39] text-white hover:text-[#014730] transition-colors text-[11px] font-bold cursor-pointer disabled:opacity-40"
-                title="Avança o progresso e simula visualização de 99% para testar liberação rápida"
-              >
-                <FastForward className="w-3.5 h-3.5" />
-                <span>Simular 99% (Avaliação)</span>
-              </button>
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={handleDevFastForward}
+                  disabled={isSaving || progressPercent >= 99}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/20 hover:bg-[#66bd39] text-white hover:text-[#014730] transition-colors text-[11px] font-bold cursor-pointer disabled:opacity-40"
+                  title="Avança o progresso e simula visualização de 99% para testar liberação rápida"
+                >
+                  <FastForward className="w-3.5 h-3.5" />
+                  <span>Simular 99% (Avaliação)</span>
+                </button>
+              )}
 
               <button
                 onClick={handleFullscreen}

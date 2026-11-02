@@ -71,7 +71,7 @@ export const LoginPage: React.FC = () => {
   const loginTitle = settings?.loginTitle || 'Acesse sua conta';
   const loginSubtitle = settings?.loginSubtitle || 'Utilize sua matrícula funcional para ingressar no evento.';
   const loginBadge = settings?.loginBadgeText || 'Honda Automóveis do Brasil';
-  const helpText = settings?.initialPasswordHelpText || 'Senha inicial: data de aniversário sem barras. Exemplo: 01051995';
+  const helpText = settings?.initialPasswordHelpText || 'Use a senha temporária fornecida pela administração.';
 
   return (
     <div
@@ -156,8 +156,8 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        {/* Quick Test Accounts */}
-        <div className="mt-8 pt-5 border-t border-slate-100">
+        {/* Contas demonstrativas existem somente no servidor de desenvolvimento. */}
+        {import.meta.env.DEV && import.meta.env.VITE_DEMO_ADMIN_PASSWORD && import.meta.env.VITE_DEMO_COLLABORATOR_PASSWORD && <div className="mt-8 pt-5 border-t border-slate-100">
           <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>Acesso Rápido para Avaliação</span>
@@ -165,28 +165,28 @@ export const LoginPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
             <button
               type="button"
-              onClick={() => handleQuickFill('admin', 'admin123')}
+              onClick={() => handleQuickFill('admin', import.meta.env.VITE_DEMO_ADMIN_PASSWORD)}
               className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 text-[var(--brand-primary-deep,#014730)] hover:bg-emerald-100 border border-emerald-200 transition-colors text-left cursor-pointer"
             >
               <KeyRound className="w-3.5 h-3.5 shrink-0 text-[var(--brand-primary,#028056)]" />
               <div>
                 <strong className="block font-bold">Admin Geral</strong>
-                <span className="text-[10px] text-slate-500">admin / admin123</span>
+                <span className="text-[10px] text-slate-500">Conta configurada no ambiente local</span>
               </div>
             </button>
             <button
               type="button"
-              onClick={() => handleQuickFill('101010', '01051995')}
+              onClick={() => handleQuickFill('101010', import.meta.env.VITE_DEMO_COLLABORATOR_PASSWORD)}
               className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors text-left cursor-pointer"
             >
               <KeyRound className="w-3.5 h-3.5 shrink-0 text-slate-400" />
               <div>
                 <strong className="block font-bold">1º Acesso</strong>
-                <span className="text-[10px] text-slate-500">101010 / 01051995</span>
+                <span className="text-[10px] text-slate-500">Conta configurada no ambiente local</span>
               </div>
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );

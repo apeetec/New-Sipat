@@ -20,6 +20,7 @@ import {
   settingsRepository,
 } from '../repositories';
 import { sha256Hex, constantTimeCompare, validatePasswordStrength } from '../../utils/security';
+import { isNodeBackendEnabled, NodeAuthApi, NodeDrawsApi, NodeEventsApi } from './node-backend-client';
 
 export interface BackendResponse<T> {
   success: boolean;
@@ -77,8 +78,10 @@ export class BackendService {
 
     // Temporary password / dev check simulation
     // In local mode, admin password is "admin123" or initial date format. For other users, standard initial password or stored pass
-    const isSpecialAdmin = user.role === 'admin' && (passwordAttempt === 'admin123' || passwordAttempt === 'admin');
-    const isDevCollaborator = passwordAttempt === '01051995' || passwordAttempt === '12345678' || passwordAttempt === 'sipat2026';
+    const demoAdminPassword = import.meta.env.DEV ? import.meta.env.VITE_DEMO_ADMIN_PASSWORD : undefined;
+    const demoCollaboratorPassword = import.meta.env.DEV ? import.meta.env.VITE_DEMO_COLLABORATOR_PASSWORD : undefined;
+    const isSpecialAdmin = user.role === 'admin' && Boolean(demoAdminPassword) && passwordAttempt === demoAdminPassword;
+    const isDevCollaborator = Boolean(demoCollaboratorPassword) && passwordAttempt === demoCollaboratorPassword;
     const isCustomStored = localStorage.getItem(`pass_${user.id}`) === passwordAttempt;
 
     const isValidPassword = isSpecialAdmin || isDevCollaborator || isCustomStored || (user.mustChangePassword && passwordAttempt.length >= 6);
@@ -115,6 +118,10 @@ export class BackendService {
    * 2. Troca obrigatória de primeira senha
    */
   async completeFirstAccess(userId: string, newPassword: string): Promise<BackendResponse<AppUser>> {
+    if (isNodeBackendEnabled) {
+      const result = await NodeAuthApi.completeFirstAccess('', newPassword);
+      return { success: result.success, data: result.user };
+    }
     const user = await userRepository.getById(userId);
     if (!user) {
       return { success: false, errorCode: 'USER_NOT_FOUND', message: 'Usuário não encontrado.' };
@@ -146,6 +153,10 @@ export class BackendService {
    * 3. Aceite de regulamento
    */
   async acceptRegulation(userId: string, version: string): Promise<BackendResponse<AppUser>> {
+    if (isNodeBackendEnabled) {
+      const result = await NodeAuthApi.acceptRegulation(version);
+      return { success: result.success, data: result.user };
+    }
     const user = await userRepository.getById(userId);
     if (!user) {
       return { success: false, errorCode: 'USER_NOT_FOUND', message: 'Usuário não encontrado.' };
@@ -180,6 +191,10 @@ export class BackendService {
     questionnaireUnlocked: boolean;
     message: string;
   }> {
+    if (isNodeBackendEnabled) {
+      const result = await NodeEventsApi.validateAttendanceCode(eventDayId, code) as any;
+      return { valid: result.valid ?? result.success, questionnaireUnlocked: result.questionnaireUnlocked ?? true, message: result.message ?? 'Presença confirmada.' };
+    }
     const rateLimitKey = `code_${userId}_${eventDayId}`;
     if (!checkRateLimit(rateLimitKey, 5, 60000)) {
       return {
@@ -269,6 +284,7 @@ export class BackendService {
     durationSeconds: number,
     _clientEventId?: string
   ): Promise<{ videoProgressPercent: number; questionnaireUnlocked: boolean }> {
+    if (isNodeBackendEnabled) return NodeEventsApi.reportVideoProgress(eventDayId, currentSeconds, durationSeconds);
     const existing = await participationRepository.get(userId, eventDayId);
     const now = new Date().toISOString();
 
@@ -313,6 +329,7 @@ export class BackendService {
     participation: Participation | null;
     isUnlocked: boolean;
   }> {
+    if (isNodeBackendEnabled) return NodeEventsApi.getParticipantEvent(eventDayId);
     const day = await eventRepository.getById(eventDayId);
     if (!day) throw new Error('Dia não encontrado');
 
@@ -368,6 +385,10 @@ export class BackendService {
     perfectScore: boolean;
     submittedAt: string;
   }>> {
+    if (isNodeBackendEnabled) {
+      const result = await NodeEventsApi.submitQuiz(params.eventDayId, params.answers, params.suggestions);
+      return { success: true, data: { ...result, submittedAt: new Date().toISOString() } };
+    }
     const { userId, eventDayId, answers, suggestions } = params;
 
     const user = await userRepository.getById(userId);
@@ -487,9 +508,11 @@ export class BackendService {
    * 8. Pré-visualização de Elegíveis para Sorteio
    */
   async previewEligibleUsers(scope: DrawScope, unitIds: string[] | ['all'], excludePreviousWinners: boolean): Promise<AppUser[]> {
+    if (isNodeBackendEnabled) return NodeDrawsApi.previewEligibleUsers(scope, unitIds, excludePreviousWinners);
     const allUsers = await userRepository.list({ active: true, role: 'collaborator' });
     const allParticipations = await participationRepository.listAll();
     const publishedDraws = await drawRepository.listPublished();
+    const countedDays = (await eventRepository.list()).filter(day => day.active && day.countsForFullWeek);
 
     // Previous winners pool
     const previousWinnerUserIds = new Set<string>();
@@ -519,11 +542,16 @@ export class BackendService {
       }
 
       if (scope.type === 'full_week') {
-        // Needs 100% on all counted active days
-        // Get all active days that count for full week
-        // We know initial active days 1 to 5 count
-        const userParts = allParticipations.filter(part => part.userId === u.id && part.status === 'submitted');
-        return userParts.length >= 1 && userParts.every(part => part.perfectScore === true);
+        // The user must have a perfect, submitted participation for every
+        // active day explicitly configured to count for the full week.
+        return countedDays.length > 0 && countedDays.every(day =>
+          allParticipations.some(part =>
+            part.userId === u.id &&
+            part.eventDayId === day.id &&
+            part.status === 'submitted' &&
+            part.perfectScore === true
+          )
+        );
       }
 
       return false;
@@ -546,6 +574,14 @@ export class BackendService {
     excludePreviousWinners: boolean;
     idempotencyKey?: string;
   }): Promise<BackendResponse<Draw>> {
+    if (isNodeBackendEnabled) {
+      const draw = await NodeDrawsApi.executeDraw({
+        prizeName: params.prizeName, prizeImageUrl: params.prizeImageUrl, groupName: params.groupName,
+        scope: params.scope, unitIds: params.unitIds, requestedWinnerCount: params.winnerCount,
+        excludePreviousWinners: params.excludePreviousWinners,
+      });
+      return { success: true, data: draw };
+    }
     const {
       adminUserId,
       prizeName,
@@ -635,6 +671,7 @@ export class BackendService {
    * 10. Anulação auditada de sorteio
    */
   async voidDraw(adminUserId: string, drawId: string, reason: string): Promise<BackendResponse<Draw>> {
+    if (isNodeBackendEnabled) return { success: true, data: await NodeDrawsApi.voidDraw(drawId, reason) };
     const admin = await userRepository.getById(adminUserId);
     if (!admin || admin.role !== 'admin') {
       return { success: false, errorCode: 'FORBIDDEN', message: 'Acesso negado.' };
